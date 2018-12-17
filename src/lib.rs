@@ -1,22 +1,22 @@
 use alga::general::{Inverse, Multiplicative, RingCommutative};
 use nalgebra::base::allocator::Allocator;
 use nalgebra::base::DefaultAllocator;
-use nalgebra::{DimName, MatrixMN, Real, Scalar, U1};
+use nalgebra::{DimName, MatrixMN, Real, Scalar, VectorN};
 
 pub trait StateSpaceNotation<T: Real + Scalar + RingCommutative, A: DimName, B: DimName, C: DimName>
 where
-    DefaultAllocator: Allocator<T, A, U1> + Allocator<T, B, U1> + Allocator<T, C, U1>,
+    DefaultAllocator: Allocator<T, A> + Allocator<T, B> + Allocator<T, C>,
 {
     fn next_output(
         &self,
-        states: MatrixMN<T, A, U1>,
-        inputs: MatrixMN<T, B, U1>,
-    ) -> MatrixMN<T, C, U1>;
+        states: VectorN<T, A>,
+        inputs: VectorN<T, B>,
+    ) -> VectorN<T, C>;
     fn next_state(
         &self,
-        states: MatrixMN<T, A, U1>,
-        inputs: MatrixMN<T, B, U1>,
-    ) -> MatrixMN<T, A, U1>;
+        states: VectorN<T, A>,
+        inputs: VectorN<T, B>,
+    ) -> VectorN<T, A>;
 }
 
 /// A general fixed controller in state space notation.
@@ -42,23 +42,23 @@ where
         + Allocator<T, A, B>
         + Allocator<T, C, A>
         + Allocator<T, C, B>
-        + Allocator<T, A, U1>
-        + Allocator<T, B, U1>
-        + Allocator<T, C, U1>,
+        + Allocator<T, A>
+        + Allocator<T, B>
+        + Allocator<T, C>,
 {
     fn next_output(
         &self,
-        states: MatrixMN<T, A, U1>,
-        inputs: MatrixMN<T, B, U1>,
-    ) -> MatrixMN<T, C, U1> {
+        states: VectorN<T, A>,
+        inputs: VectorN<T, B>,
+    ) -> VectorN<T, C> {
         &self.output * states + &self.feedthrough * inputs
     }
 
     fn next_state(
         &self,
-        states: MatrixMN<T, A, U1>,
-        inputs: MatrixMN<T, B, U1>,
-    ) -> MatrixMN<T, A, U1> {
+        states: VectorN<T, A>,
+        inputs: VectorN<T, B>,
+    ) -> VectorN<T, A> {
         &self.system * states + &self.input * inputs
     }
 }
@@ -134,7 +134,7 @@ impl<T: Real + Scalar + RingCommutative, A: DimName, C: DimName>
     KalmanStateTransferFunction<T, A, C>
 where
     DefaultAllocator:
-        Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, A, U1> + Allocator<T, C, U1>,
+        Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, A> + Allocator<T, C>,
 {
     pub fn new(measurement: MatrixMN<T, C, A>) -> Self {
         KalmanStateTransferFunction { measurement }
@@ -144,9 +144,9 @@ where
     pub fn eval(
         &self,
         kalman_gains: MatrixMN<T, A, C>,
-        states: MatrixMN<T, A, U1>,
-        outputs: MatrixMN<T, C, U1>,
-    ) -> MatrixMN<T, A, U1> {
+        states: VectorN<T, A>,
+        outputs: VectorN<T, C>,
+    ) -> VectorN<T, A> {
         &states + kalman_gains * (outputs - &self.measurement * &states)
     }
 }
@@ -196,9 +196,9 @@ where
         + Allocator<T, C, C>
         + Allocator<T, B, A>
         + Allocator<T, B, B>
-        + Allocator<T, A, U1>
-        + Allocator<T, B, U1>
-        + Allocator<T, C, U1>,
+        + Allocator<T, A>
+        + Allocator<T, B>
+        + Allocator<T, C>,
     MatrixMN<T, C, C>: Inverse<Multiplicative>,
 {
     kalman_gains: KalmanGainsController<T, A, C>,
@@ -216,12 +216,12 @@ where
         + Allocator<T, A, B>
         + Allocator<T, B, A>
         + Allocator<T, B, B>
-        + Allocator<T, A, U1>
-        + Allocator<T, B, U1>
+        + Allocator<T, A>
+        + Allocator<T, B>
         + Allocator<T, A, C>
         + Allocator<T, C, A>
         + Allocator<T, C, C>
-        + Allocator<T, C, U1>,
+        + Allocator<T, C>,
     MatrixMN<T, C, C>: Inverse<Multiplicative>,
 {
     pub fn new(
@@ -246,9 +246,9 @@ where
 
     pub fn predict_state(
         &self,
-        state_estimate: MatrixMN<T, A, U1>,
-        inputs: MatrixMN<T, B, U1>,
-    ) -> MatrixMN<T, A, U1> {
+        state_estimate: VectorN<T, A>,
+        inputs: VectorN<T, B>,
+    ) -> VectorN<T, A> {
         &self.system * state_estimate + &self.input * inputs
     }
 
@@ -262,9 +262,9 @@ where
     pub fn update(
         &self,
         error_covariance: MatrixMN<T, A, A>,
-        state_estimates: MatrixMN<T, A, U1>,
-        outputs: MatrixMN<T, C, U1>,
-    ) -> (MatrixMN<T, A, U1>, MatrixMN<T, A, A>) {
+        state_estimates: VectorN<T, A>,
+        outputs: VectorN<T, C>,
+    ) -> (VectorN<T, A>, MatrixMN<T, A, A>) {
         let kalman_gains = self.kalman_gains.next_gains(error_covariance.clone());
         let new_state_estimate =
             self.state_transfer
