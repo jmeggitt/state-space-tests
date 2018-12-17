@@ -1,0 +1,11 @@
+[package]
+name = "state-space"
+version = "0.1.0"
+authors = ["Jasper Meggitt <jasper.meggitt@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nalgebra = "0.16.11"
+num = "0.2.0"
+typenum = "1.10.0"
+alga = "0.7.2"
