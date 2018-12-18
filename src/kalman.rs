@@ -4,10 +4,10 @@ use nalgebra::base::DefaultAllocator;
 use nalgebra::{DimName, MatrixMN, Real, Scalar, VectorN};
 
 pub struct KalmanGainsController<T: Real + Scalar + RingCommutative, A: DimName, B: DimName>
-    where
-        DefaultAllocator:
+where
+    DefaultAllocator:
         Allocator<T, A, A> + Allocator<T, A, B> + Allocator<T, B, A> + Allocator<T, B, B>,
-        MatrixMN<T, B, B>: Inverse<Multiplicative>,
+    MatrixMN<T, B, B>: Inverse<Multiplicative>,
 {
     measurement: MatrixMN<T, B, A>,
     measurement_noise_covariance: MatrixMN<T, B, B>,
@@ -16,10 +16,10 @@ pub struct KalmanGainsController<T: Real + Scalar + RingCommutative, A: DimName,
 }
 
 impl<T: Real + Scalar + RingCommutative, A: DimName, C: DimName> KalmanGainsController<T, A, C>
-    where
-        DefaultAllocator:
+where
+    DefaultAllocator:
         Allocator<T, A, A> + Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, C, C>,
-        MatrixMN<T, C, C>: Inverse<Multiplicative>,
+    MatrixMN<T, C, C>: Inverse<Multiplicative>,
 {
     pub fn new(
         measurement: MatrixMN<T, C, A>,
@@ -36,24 +36,23 @@ impl<T: Real + Scalar + RingCommutative, A: DimName, C: DimName> KalmanGainsCont
         &error_covariance
             * &self.measurement_transpose
             * nalgebra::inverse(
-            &(&self.measurement * error_covariance * &self.measurement_transpose
-                + &self.measurement_noise_covariance),
-        )
+                &(&self.measurement * error_covariance * &self.measurement_transpose
+                    + &self.measurement_noise_covariance),
+            )
     }
 }
 
 pub struct KalmanStateTransferFunction<T: Real + Scalar + RingCommutative, A: DimName, C: DimName>
-    where
-        DefaultAllocator: Allocator<T, C, A>,
+where
+    DefaultAllocator: Allocator<T, C, A>,
 {
     measurement: MatrixMN<T, C, A>,
 }
 
 impl<T: Real + Scalar + RingCommutative, A: DimName, C: DimName>
-KalmanStateTransferFunction<T, A, C>
-    where
-        DefaultAllocator:
-        Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, A> + Allocator<T, C>,
+    KalmanStateTransferFunction<T, A, C>
+where
+    DefaultAllocator: Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, A> + Allocator<T, C>,
 {
     pub fn new(measurement: MatrixMN<T, C, A>) -> Self {
         KalmanStateTransferFunction { measurement }
@@ -82,9 +81,9 @@ pub struct KalmanErrorCovarianceTransferFunction<
 }
 
 impl<T: Real + Scalar + RingCommutative, A: DimName, C: DimName>
-KalmanErrorCovarianceTransferFunction<T, A, C>
-    where
-        DefaultAllocator: Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, A, A>,
+    KalmanErrorCovarianceTransferFunction<T, A, C>
+where
+    DefaultAllocator: Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, A, A>,
 {
     pub fn new(measurement: MatrixMN<T, C, A>) -> Self {
         let mut res = unsafe { MatrixMN::new_uninitialized_generic(A::name(), A::name()) };
@@ -107,8 +106,8 @@ KalmanErrorCovarianceTransferFunction<T, A, C>
 }
 
 pub struct KalmanFilter<T: Real + RingCommutative, A: DimName, B: DimName, C: DimName>
-    where
-        DefaultAllocator: Allocator<T, A, A>
+where
+    DefaultAllocator: Allocator<T, A, A>
         + Allocator<T, A, B>
         + Allocator<T, A, C>
         + Allocator<T, C, A>
@@ -118,7 +117,7 @@ pub struct KalmanFilter<T: Real + RingCommutative, A: DimName, B: DimName, C: Di
         + Allocator<T, A>
         + Allocator<T, B>
         + Allocator<T, C>,
-        MatrixMN<T, C, C>: Inverse<Multiplicative>,
+    MatrixMN<T, C, C>: Inverse<Multiplicative>,
 {
     kalman_gains: KalmanGainsController<T, A, C>,
     state_transfer: KalmanStateTransferFunction<T, A, C>,
@@ -129,9 +128,9 @@ pub struct KalmanFilter<T: Real + RingCommutative, A: DimName, B: DimName, C: Di
 }
 
 impl<T: Real + Scalar + RingCommutative, A: DimName, B: DimName, C: DimName>
-KalmanFilter<T, A, B, C>
-    where
-        DefaultAllocator: Allocator<T, A, A>
+    KalmanFilter<T, A, B, C>
+where
+    DefaultAllocator: Allocator<T, A, A>
         + Allocator<T, A, B>
         + Allocator<T, B, A>
         + Allocator<T, B, B>
@@ -141,7 +140,7 @@ KalmanFilter<T, A, B, C>
         + Allocator<T, C, A>
         + Allocator<T, C, C>
         + Allocator<T, C>,
-        MatrixMN<T, C, C>: Inverse<Multiplicative>,
+    MatrixMN<T, C, C>: Inverse<Multiplicative>,
 {
     pub fn new(
         system: MatrixMN<T, A, A>,
