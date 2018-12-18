@@ -66,6 +66,10 @@ where
     DefaultAllocator: Allocator<T, N, N>,
     DefaultAllocator: Allocator<T, N>,
 {
+    if data.len() != N::dim() {
+        panic!("Jacobian square generation was passed a vec of invalid length!");
+    }
+
     let mut final_matrix: MatrixMN<T, N, N> = new_matrix();
     let epsilon = T::from(T::default_epsilon());
 
