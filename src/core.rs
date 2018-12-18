@@ -57,25 +57,26 @@ where
 
 #[inline]
 /// TODO: This could be wrong. I dont know how to do partial derivatives
-pub fn jacobian_square<T: Real + Scalar + RingCommutative, N: DimName, F: FnMut(&T) -> T>(
-    data: &mut VectorN<T, N>,
+pub fn jacobian_square<
+    T: Real + Scalar + RingCommutative,
+    R: DimName,
+    C: DimName,
+    F: FnMut(&T) -> T,
+>(
+    data: &mut VectorN<T, C>,
     function: &mut Vec<F>,
-) -> MatrixMN<T, N, N>
+) -> MatrixMN<T, R, C>
 where
     T: From<<T as approx::AbsDiffEq>::Epsilon>,
-    DefaultAllocator: Allocator<T, N, N>,
-    DefaultAllocator: Allocator<T, N>,
+    DefaultAllocator: Allocator<T, R, C>,
+    DefaultAllocator: Allocator<T, C>,
 {
-    if data.len() != N::dim() {
-        panic!("Jacobian square generation was passed a vec of invalid length!");
-    }
-
-    let mut final_matrix: MatrixMN<T, N, N> = new_matrix();
+    let mut final_matrix: MatrixMN<T, R, C> = new_matrix();
     let epsilon = T::from(T::default_epsilon());
 
     unsafe {
-        for column in 0..N::dim() {
-            for row in 0..N::dim() {
+        for column in 0..C::dim() {
+            for row in 0..function.len() {
                 let data_point = *data.get_unchecked(row, 0);
                 *final_matrix.get_unchecked_mut(row, column) =
                     ((&mut function[column])(&(data_point + epsilon))
