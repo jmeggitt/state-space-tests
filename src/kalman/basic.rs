@@ -1,9 +1,12 @@
 use alga::general::{Inverse, Multiplicative, RingCommutative};
 use nalgebra::base::allocator::Allocator;
 use nalgebra::base::DefaultAllocator;
-use nalgebra::{DimName, MatrixMN, Real, Scalar, VectorN};
+use nalgebra::{DimName, MatrixMN, Real, VectorN};
 
-pub struct KalmanGainsController<T: Real + Scalar + RingCommutative, A: DimName, B: DimName>
+use super::KalmanFilter;
+use crate::core::{new_matrix, MatrixNum};
+
+pub struct KalmanGainsController<T: MatrixNum, A: DimName, B: DimName>
 where
     DefaultAllocator:
         Allocator<T, A, A> + Allocator<T, A, B> + Allocator<T, B, A> + Allocator<T, B, B>,
@@ -11,11 +14,10 @@ where
 {
     measurement: MatrixMN<T, B, A>,
     measurement_noise_covariance: MatrixMN<T, B, B>,
-    /// Pre-compute to save time
     measurement_transpose: MatrixMN<T, A, B>,
 }
 
-impl<T: Real + Scalar + RingCommutative, A: DimName, C: DimName> KalmanGainsController<T, A, C>
+impl<T: MatrixNum, A: DimName, C: DimName> KalmanGainsController<T, A, C>
 where
     DefaultAllocator:
         Allocator<T, A, A> + Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, C, C>,
@@ -42,15 +44,14 @@ where
     }
 }
 
-pub struct KalmanStateTransferFunction<T: Real + Scalar + RingCommutative, A: DimName, C: DimName>
+pub struct KalmanStateTransferFunction<T: MatrixNum, A: DimName, C: DimName>
 where
     DefaultAllocator: Allocator<T, C, A>,
 {
     measurement: MatrixMN<T, C, A>,
 }
 
-impl<T: Real + Scalar + RingCommutative, A: DimName, C: DimName>
-    KalmanStateTransferFunction<T, A, C>
+impl<T: MatrixNum, A: DimName, C: DimName> KalmanStateTransferFunction<T, A, C>
 where
     DefaultAllocator: Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, A> + Allocator<T, C>,
 {
@@ -69,19 +70,15 @@ where
     }
 }
 
-pub struct KalmanErrorCovarianceTransferFunction<
-    T: Real + Scalar + RingCommutative,
-    A: DimName,
-    C: DimName,
-> where
+pub struct KalmanErrorCovarianceTransferFunction<T: MatrixNum, A: DimName, C: DimName>
+where
     DefaultAllocator: Allocator<T, C, A> + Allocator<T, A, A>,
 {
     measurement: MatrixMN<T, C, A>,
     identity: MatrixMN<T, A, A>,
 }
 
-impl<T: Real + Scalar + RingCommutative, A: DimName, C: DimName>
-    KalmanErrorCovarianceTransferFunction<T, A, C>
+impl<T: MatrixNum, A: DimName, C: DimName> KalmanErrorCovarianceTransferFunction<T, A, C>
 where
     DefaultAllocator: Allocator<T, A, C> + Allocator<T, C, A> + Allocator<T, A, A>,
 {
@@ -105,7 +102,7 @@ where
     }
 }
 
-pub struct KalmanFilter<T: Real + RingCommutative, A: DimName, B: DimName, C: DimName>
+pub struct BasicKalmanFilter<T: Real + RingCommutative, A: DimName, B: DimName, C: DimName>
 where
     DefaultAllocator: Allocator<T, A, A>
         + Allocator<T, A, B>
@@ -122,13 +119,13 @@ where
     kalman_gains: KalmanGainsController<T, A, C>,
     state_transfer: KalmanStateTransferFunction<T, A, C>,
     error_covariance_transfer: KalmanErrorCovarianceTransferFunction<T, A, C>,
+    error_covariance: MatrixMN<T, A, A>,
     process_noise: MatrixMN<T, A, A>,
     system: MatrixMN<T, A, A>,
     input: MatrixMN<T, A, B>,
 }
 
-impl<T: Real + Scalar + RingCommutative, A: DimName, B: DimName, C: DimName>
-    KalmanFilter<T, A, B, C>
+impl<T: MatrixNum, A: DimName, B: DimName, C: DimName> BasicKalmanFilter<T, A, B, C>
 where
     DefaultAllocator: Allocator<T, A, A>
         + Allocator<T, A, B>
@@ -149,47 +146,56 @@ where
         measurement: MatrixMN<T, C, A>,
         measurement_noise_covariance: MatrixMN<T, C, C>,
     ) -> Self {
-        KalmanFilter {
+        BasicKalmanFilter {
             kalman_gains: KalmanGainsController::new(
                 measurement.clone(),
                 measurement_noise_covariance,
             ),
             state_transfer: KalmanStateTransferFunction::new(measurement.clone()),
             error_covariance_transfer: KalmanErrorCovarianceTransferFunction::new(measurement),
+            error_covariance: new_matrix(),
             process_noise,
             system,
             input,
         }
     }
+}
 
-    pub fn predict_state(
-        &self,
-        state_estimate: VectorN<T, A>,
+impl<T: MatrixNum, A: DimName, B: DimName, C: DimName> KalmanFilter<T, A, B, C>
+    for BasicKalmanFilter<T, A, B, C>
+where
+    DefaultAllocator: Allocator<T, A, A>
+        + Allocator<T, A, B>
+        + Allocator<T, B, A>
+        + Allocator<T, B, B>
+        + Allocator<T, A>
+        + Allocator<T, B>
+        + Allocator<T, A, C>
+        + Allocator<T, C, A>
+        + Allocator<T, C, C>
+        + Allocator<T, C>,
+    MatrixMN<T, C, C>: Inverse<Multiplicative>,
+{
+    fn update(
+        &mut self,
+        state: VectorN<T, A>,
         inputs: VectorN<T, B>,
-    ) -> VectorN<T, A> {
-        &self.system * state_estimate + &self.input * inputs
-    }
-
-    pub fn predict_error_covariance(
-        &self,
-        error_covariance: MatrixMN<T, A, A>,
-    ) -> MatrixMN<T, A, A> {
-        &self.system * error_covariance * self.system.transpose() + &self.process_noise
-    }
-
-    pub fn update(
-        &self,
-        error_covariance: MatrixMN<T, A, A>,
-        state_estimates: VectorN<T, A>,
         outputs: VectorN<T, C>,
-    ) -> (VectorN<T, A>, MatrixMN<T, A, A>) {
-        let kalman_gains = self.kalman_gains.next_gains(error_covariance.clone());
+    ) -> VectorN<T, A> {
+        let prediction_state = &self.system * &state + &self.input * inputs;
+
+        let prediction_error_covariance =
+            &self.system * &self.error_covariance * self.system.transpose() + &self.process_noise;
+
+        let kalman_gains = self
+            .kalman_gains
+            .next_gains(prediction_error_covariance.clone());
         let new_state_estimate =
             self.state_transfer
-                .eval(kalman_gains.clone(), state_estimates, outputs);
-        let new_error_covariance = self
+                .eval(kalman_gains.clone(), prediction_state, outputs);
+        self.error_covariance = self
             .error_covariance_transfer
-            .eval(kalman_gains, error_covariance);
-        (new_state_estimate, new_error_covariance)
+            .eval(kalman_gains, prediction_error_covariance);
+        new_state_estimate
     }
 }

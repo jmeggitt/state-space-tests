@@ -3,6 +3,9 @@ use nalgebra::base::allocator::Allocator;
 use nalgebra::base::DefaultAllocator;
 use nalgebra::{DimName, MatrixMN, Real, Scalar, VectorN};
 
+mod types;
+pub use self::types::*;
+
 #[inline(always)]
 pub fn new_matrix<T: Real + Scalar + RingCommutative, R: DimName, C: DimName>() -> MatrixMN<T, R, C>
 where
